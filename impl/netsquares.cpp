@@ -1,6 +1,7 @@
 #include "../defines.h"
 #include "../win32.h"
 #include "../netsquares.h"
+#include "../client/client.h"
 
 #include <stdio.h>
 
