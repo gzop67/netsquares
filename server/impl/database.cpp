@@ -17,6 +17,5 @@ db_delete_account(char *name)
 bool8
 db_lookup(char *name, char *pass)
 {
-
   return (TRUE);
 }
