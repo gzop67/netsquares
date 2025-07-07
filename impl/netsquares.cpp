@@ -12,7 +12,11 @@ int main(int argc, char **argv)
   {
     if (client_connect())
     {
-      fprintf(stdout, "Client connected, exiting.");
+      fprintf(stdout, "Client connected.\n");
+      for (;;)
+      {
+        poll_server();
+      }
       return (0);
     }
   }
