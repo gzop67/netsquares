@@ -1,7 +1,8 @@
 #include "../packets.h"
+#include <cstring>
 
-bool8
-make_packet(enum PACKET_TYPE type, void *packet)
+u32
+make_packet(enum PACKET_TYPE type, void *packet, char *dst)
 {
   switch (type)
   {
@@ -11,7 +12,8 @@ make_packet(enum PACKET_TYPE type, void *packet)
       } break;
     case LOGIN:
       {
-
+        memcpy(dst, (char*)packet, sizeof(login_packet));
+        return (sizeof(login_packet));
       } break;
 
     case HEARTBEAT:
@@ -19,4 +21,5 @@ make_packet(enum PACKET_TYPE type, void *packet)
 
       } break;
   }
+  return (FALSE);
 }
