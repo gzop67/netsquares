@@ -97,23 +97,40 @@ connect_client(u32 login_connections_index, const char *username) //TEMP passing
   client_connection cc;
   cc._client_id = dumb_hash(username);
   cc._session_id = random_u32();
-  cc._address_info = lc->_sockaddr_storage;
-
-  // TEMP fix port from initial TCP connection.
-  sockaddr_in *addr = (sockaddr_in*)&cc._address_info;
-  addr->sin_port = htons(atoi(PORT));  
+  //cc._address_info = lc->_sockaddr_storage;
 
   for (u32 i = 0; i < MAX_CLIENTS; i++)
   {
     if (!connected_clients[i]._alive)
     {
-      connected_clients[i]._client_connection = cc;
       connected_clients[i]._alive = TRUE;
       connected_clients[i]._ms_since_last_heartbeat = 0;
 
       char buf[16];
       buf[0] = 9;
       send(lc->_socket, buf, 16, 0);
+
+      struct sockaddr_storage their_addr;
+      socklen_t sz = sizeof(their_addr);
+
+      s32 r = recvfrom(udp_socket, buf, 16-1, 0, (sockaddr*)&their_addr,
+          &sz);
+      if (r > 0 && r != SOCKET_ERROR)
+      {
+        fprintf(stdout, "ACK:: %s\n", buf);
+        cc._address_info = *(sockaddr_storage*)&their_addr;
+        connected_clients[i]._client_connection = cc;
+      }
+      else
+      {
+        wchar_t *s = NULL;
+        FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, 
+            NULL, WSAGetLastError(),
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+            (LPWSTR)&s, 0, NULL);
+        fprintf(stdout, "%S\n", s);
+        assert(FALSE && "Ack recvfrom fail.");
+      }
       if (closesocket(lc->_socket) == SOCKET_ERROR)
       {
         assert(FALSE && "Failed to close socket on client connect.");
@@ -135,35 +152,25 @@ server_maintain_connections(LPVOID lpParam)
 
   for (;;)
   {
+    Sleep(1000);
     for (u32 i = 0; i < MAX_CLIENTS; i++)
     {
       if (connected_clients[i]._alive)
       {
         client_connection_tracker *c = &connected_clients[i];
 
-        /*
-        struct addrinfo hints;
-        struct addrinfo *ii;
-        memset(&hints, 0, sizeof(struct addrinfo));
-        hints.ai_family = AF_UNSPEC;
-        hints.ai_socktype = SOCK_DGRAM;
-
-        if (getaddrinfo("127.0.0.1", PORT, &hints, &ii) != 0)
-        {
-          assert(FALSE && "Fail");
-        }
-        sockaddr_in *pp = ((sockaddr_in*)&c->_client_connection._address_info);
-        pp->sin_port = 6666;
-        fprintf(stdout, "trying to sendto ip %s, port %d\n", 
-            inet_ntoa(((sockaddr_in*)&c->_client_connection._address_info)->sin_addr), 
-        ntohs(((sockaddr_in*)&c->_client_connection._address_info)->sin_port));
-        */
-
         s32 sz = sizeof(sockaddr_storage);
         s32 r = sendto(udp_socket, ping, 4, 0,
               (sockaddr*)&c->_client_connection._address_info,
               //(sockaddr*)ii->ai_addr,
               sz);
+
+        sockaddr_in *sin = (sockaddr_in*)&c->_client_connection._address_info;
+        char hname[128];
+        getnameinfo((sockaddr*)&c->_client_connection._address_info, sizeof(c->_client_connection._address_info), hname, 128,
+            NULL, 0, 0);
+        fprintf(stdout, "packet sent to: %s on %s:%d\n", 
+            hname, inet_ntoa(sin->sin_addr), sin->sin_port);
         if (r == SOCKET_ERROR)
         {
           wchar_t *s = NULL;
@@ -222,8 +229,7 @@ server_listen_for_new_connections(LPVOID lpParam)
   WSADATA wsa_data;
   if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0)
   {
-    fprintf(stdout, "WTF\n");
-    assert(FALSE && "Fail startup.");
+    assert(FALSE && "_WSAStartup()_ failed.");
   }
   struct addrinfo hints;
   struct addrinfo *address_info;
@@ -240,23 +246,22 @@ server_listen_for_new_connections(LPVOID lpParam)
   SOCKET s = socket(address_info->ai_family, address_info->ai_socktype,
       address_info->ai_protocol);
   if (s == INVALID_SOCKET)
-    assert(false && "Socket failed\n");
-
+  {
+    assert(FALSE && "Socket failed\n");
+  }
 
   if (bind(s, address_info->ai_addr, address_info->ai_addrlen) == SOCKET_ERROR)
   {
-    fprintf(stdout, "fail bind\n");
     assert(FALSE && "Bind fail\n");
   }
 
   if (listen(s, 5) == SOCKET_ERROR)
   {
-    fprintf(stdout, "Fail\n");
     assert(FALSE && "Listen fail\n");
   }
 
   freeaddrinfo(address_info);
-  fprintf(stdout, "waiting to accept\n");
+  fprintf(stdout, "Listening for client connections.\n");
   for (;;)
   {
     struct sockaddr_storage their_addr;
@@ -266,19 +271,17 @@ server_listen_for_new_connections(LPVOID lpParam)
     if ((connection_socket = accept(s, (sockaddr*)&their_addr, &sz))
         != INVALID_SOCKET)
     {
-
       s32 sid = get_empty_login_socket_index();
       if (sid != -1)
       {
-        char hname[128], sbuf[128];
+        char hname[128];
+        sockaddr_in *sin = (sockaddr_in*)&their_addr;
         getnameinfo((sockaddr*)&their_addr, sizeof(their_addr), hname, 128,
-            sbuf, 128, 0);
-        fprintf(stdout, "New connection found on ip %s, port %s.\n", 
-            hname, sbuf);
+            NULL, 0, 0);
+        fprintf(stdout, "New connection: %s on %s:%d\n", 
+            hname, inet_ntoa(sin->sin_addr), sin->sin_port);
         login_connections[sid]._socket = connection_socket;
         login_connections[sid]._sockaddr_storage = their_addr;
-        //sprintf(login_connections[sid]._ip, "cat");
-        //sockaddr_to_ip(&their_addr, login_connections[sid]._ip);
       }
       else
       {
@@ -307,19 +310,24 @@ main (int argc, char **argv)
   struct addrinfo hints;
   struct addrinfo *address_info;
   memset(&hints, 0, sizeof(struct addrinfo));
-  hints.ai_family = AF_UNSPEC;
+  hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_DGRAM;
-  if (getaddrinfo("127.0.0.1", PORT, &hints, &address_info) != 0)
+  if (getaddrinfo("127.0.0.1", "6661", &hints, &address_info) != 0)
   {
     fprintf(stdout, "faili\n");
     assert(FALSE && "Addr fail\n");
   }
   udp_socket = socket(address_info->ai_family,
       address_info->ai_socktype, address_info->ai_protocol);
+  if (bind(udp_socket, address_info->ai_addr, address_info->ai_addrlen) == SOCKET_ERROR)
+  {
+
+  }
   if (udp_socket == INVALID_SOCKET)
   {
     assert(FALSE && "UDP SOCK FAIL.");
   }
+  freeaddrinfo(address_info);
   for (u32 i = 0; i < MAX_LOGIN_CONNECTIONS; i++)
   {
     login_connections[i]._socket = INVALID_SOCKET;
