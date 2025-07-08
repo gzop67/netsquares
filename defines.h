@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <assert.h>
 
+#define PORT "6666"
+
 #define TRUE 1
 #define FALSE 0
 
@@ -12,6 +14,10 @@
 #define WINDOW_HEIGHT 256
 
 #define SQUARE_SIZE 32
+
+#define internal static
+#define global static
+#define local_persist static
 
 typedef uint32_t bool32;
 typedef uint8_t bool8;

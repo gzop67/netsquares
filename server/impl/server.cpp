@@ -5,6 +5,7 @@
 #include <ws2tcpip.h>
 #include <processthreadsapi.h>
 #include <stdio.h>
+#include <cstdlib>
 
 #define MAX_LOGIN_CONNECTIONS 16
 #define MAX_CLIENTS 32
@@ -24,7 +25,7 @@ struct client_connection
 {
   u32 _session_id;
   u32 _client_id;
-  struct sockaddr_storage _address_info;
+  sockaddr_storage _address_info;
 };
 
 typedef struct client_connection_tracker client_connection_tracker;
@@ -97,6 +98,11 @@ connect_client(u32 login_connections_index, const char *username) //TEMP passing
   cc._client_id = dumb_hash(username);
   cc._session_id = random_u32();
   cc._address_info = lc->_sockaddr_storage;
+
+  // TEMP fix port from initial TCP connection.
+  sockaddr_in *addr = (sockaddr_in*)&cc._address_info;
+  addr->sin_port = htons(atoi(PORT));  
+
   for (u32 i = 0; i < MAX_CLIENTS; i++)
   {
     if (!connected_clients[i]._alive)
@@ -134,9 +140,31 @@ server_maintain_connections(LPVOID lpParam)
       if (connected_clients[i]._alive)
       {
         client_connection_tracker *c = &connected_clients[i];
-        if (sendto(udp_socket, ping, 5, 0,
+
+        /*
+        struct addrinfo hints;
+        struct addrinfo *ii;
+        memset(&hints, 0, sizeof(struct addrinfo));
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = SOCK_DGRAM;
+
+        if (getaddrinfo("127.0.0.1", PORT, &hints, &ii) != 0)
+        {
+          assert(FALSE && "Fail");
+        }
+        sockaddr_in *pp = ((sockaddr_in*)&c->_client_connection._address_info);
+        pp->sin_port = 6666;
+        fprintf(stdout, "trying to sendto ip %s, port %d\n", 
+            inet_ntoa(((sockaddr_in*)&c->_client_connection._address_info)->sin_addr), 
+        ntohs(((sockaddr_in*)&c->_client_connection._address_info)->sin_port));
+        */
+
+        s32 sz = sizeof(sockaddr_storage);
+        s32 r = sendto(udp_socket, ping, 4, 0,
               (sockaddr*)&c->_client_connection._address_info,
-              sizeof(c->_client_connection._address_info)) == SOCKET_ERROR)
+              //(sockaddr*)ii->ai_addr,
+              sz);
+        if (r == SOCKET_ERROR)
         {
           wchar_t *s = NULL;
           FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, 
@@ -144,6 +172,10 @@ server_maintain_connections(LPVOID lpParam)
               MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
               (LPWSTR)&s, 0, NULL);
           fprintf(stdout, "%S\n", s);
+        }
+        else
+        {
+          //fprintf(stdout, "should have sent %d bytes\n", r);
         }
       }
     }
@@ -234,10 +266,15 @@ server_listen_for_new_connections(LPVOID lpParam)
     if ((connection_socket = accept(s, (sockaddr*)&their_addr, &sz))
         != INVALID_SOCKET)
     {
+
       s32 sid = get_empty_login_socket_index();
       if (sid != -1)
       {
-        fprintf(stdout, "New connection found.\n");
+        char hname[128], sbuf[128];
+        getnameinfo((sockaddr*)&their_addr, sizeof(their_addr), hname, 128,
+            sbuf, 128, 0);
+        fprintf(stdout, "New connection found on ip %s, port %s.\n", 
+            hname, sbuf);
         login_connections[sid]._socket = connection_socket;
         login_connections[sid]._sockaddr_storage = their_addr;
         //sprintf(login_connections[sid]._ip, "cat");
