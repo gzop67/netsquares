@@ -19,6 +19,13 @@ struct net_header
   u32 _size; //NOTE (23:08PM 250709): includes the size of this net_header.
 };
 
+typedef struct ping_packet ping_packet;
+struct ping_packet
+{
+  net_header _header;
+  char _ping[5] = {'p', 'i', 'n', 'g', '\0'};
+};
+
 typedef struct login_packet login_packet;
 struct login_packet
 {
@@ -30,8 +37,9 @@ struct login_packet
 typedef struct world_state_packet world_state_packet;
 struct world_state_packet
 {
+  net_header _header;
   u8 _food_count;
-  v2i _food_pos[MAX_FOOD];
+  v2i _food_pos[FOOD_MAX];
 };
 
 /*

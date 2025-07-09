@@ -1,4 +1,5 @@
 #include "../server.h"
+#include "../world.h"
 #include "../../packets.h"
 
 #include <winsock2.h>
@@ -137,11 +138,45 @@ connect_client(u32 login_connections_index, const char *username)
   return (FALSE);
 }
 
+bool8
+send_packet_to_all_clients(void *packet, u32 size)
+{
+  for (u32 i = 0; i < MAX_CLIENTS; i++)
+  {
+    if (connected_clients[i]._alive)
+    {
+      client_connection_tracker *c = &connected_clients[i];
+
+      s32 sz = sizeof(sockaddr_storage);
+      s32 r = sendto(udp_socket, (char*)packet, size, 0,
+          (sockaddr*)&c->_client_connection._address_info,
+          sz);
+      if (r == SOCKET_ERROR)
+      {
+        //winsock_err("udp sendto()");
+      }
+      else
+      {
+      }
+
+      sockaddr_in *sin = (sockaddr_in*)&c->_client_connection._address_info;
+      char hname[128];
+      getnameinfo((sockaddr*)&c->_client_connection._address_info,
+          sizeof(c->_client_connection._address_info), hname, 128, NULL, 0,
+          0);
+      fprintf(stdout, "packet sent to: %s on %s:%d\n", 
+          hname, inet_ntoa(sin->sin_addr), sin->sin_port);
+    }
+  }
+  return (FALSE);
+}
+
 void
 server_maintain_connections(void*)
 {
-  char ping[5] = {'p', 'i', 'n', 'g', '\0'};
-
+  ping_packet ping;
+  ping._header._type = HEARTBEAT;
+  ping._header._size = sizeof(ping_packet);
   for (;;)
   {
     Sleep(1000);
@@ -152,7 +187,7 @@ server_maintain_connections(void*)
         client_connection_tracker *c = &connected_clients[i];
 
         s32 sz = sizeof(sockaddr_storage);
-        s32 r = sendto(udp_socket, ping, 4, 0,
+        s32 r = sendto(udp_socket, (char*)&ping, sizeof(ping), 0,
               (sockaddr*)&c->_client_connection._address_info,
               sz);
         if (r == SOCKET_ERROR)
@@ -168,7 +203,7 @@ server_maintain_connections(void*)
         getnameinfo((sockaddr*)&c->_client_connection._address_info,
             sizeof(c->_client_connection._address_info), hname, 128, NULL, 0,
             0);
-        fprintf(stdout, "packet sent to: %s on %s:%d\n", 
+        fprintf(stdout, "ping sent to: %s on %s:%d\n", 
             hname, inet_ntoa(sin->sin_addr), sin->sin_port);
 
       }
@@ -332,6 +367,15 @@ main (int argc, char **argv)
   {
     assert(FALSE && "Failed to create server_maintain thread.");
   }
+
+  spawn_food({50,50});
+  spawn_food({100,50});
+  spawn_food({50,100});
+  for (;;)
+  {
+    world_update();
+  }
+
   WaitForMultipleObjects(3, server_function_threads, TRUE, INFINITE);
 
   return (0);

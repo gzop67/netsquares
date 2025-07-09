@@ -8,11 +8,28 @@
 #include <process.h>
 
 internal u32 food_count;
-internal v2f food[FOOD_MAX];
+internal v2i food[FOOD_MAX];
 internal bool8 food_alive[FOOD_MAX];
 internal RECT temp[FOOD_MAX];
 
 internal v2f player_pos;
+
+void
+set_world_state(world_state_packet *packet)
+{
+  food_count = packet->_food_count;
+  memcpy(food, packet->_food_pos, sizeof(v2i) * FOOD_MAX);
+  memset(food_alive, 0, sizeof(bool8) * FOOD_MAX);
+  for (u32 i = 0; i < food_count; i++)
+  {
+    food_alive[i] = TRUE;
+    v2i p = food[i];
+    temp[i] = {(s64)(p._x - FOOD_SIZE*0.5f), 
+      (s64)(p._y + FOOD_SIZE*0.5f),
+      (s64)(p._x + FOOD_SIZE*0.5f),
+      (s64)(p._y - FOOD_SIZE*0.5f)};
+  }
+}
 
 void
 get_player_rect(RECT *rect)
@@ -48,36 +65,9 @@ get_world_rects(RECT *world_rects)
   return (food_count);
 }
 
-internal bool8
-spawn_food(v2f pos)
-{
-  for (u32 i = 0; i < FOOD_MAX; i++)
-  {
-    if (!food_alive[i])
-    {
-      temp[i] = {
-        (s64)(pos._x - FOOD_SIZE*0.5f), 
-        (s64)(pos._y + FOOD_SIZE*0.5f),
-        (s64)(pos._x + FOOD_SIZE*0.5f),
-        (s64)(pos._y - FOOD_SIZE*0.5f)
-      };
-      fprintf(stdout, "FF %d %d %d %d\n", temp[i].left, temp[i].right,
-          temp[i].top, temp[i].bottom);
-      food_alive[i] = TRUE;
-      food[i] = pos;
-      food_count++;
-      return (TRUE);
-    }
-  }
-  return (FALSE);
-}
-
 int main(int argc, char **argv)
 {
   win32_initialise();
-  spawn_food({20, 20});
-  spawn_food({50, 50});
-  spawn_food({100, 100});
   for (;;)
   {
     if (client_connect())

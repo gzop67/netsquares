@@ -2,6 +2,7 @@
 #define SERVER_WORLD_H
 
 #include "../defines.h"
-void spawn_food(v2f pos);
+bool8 spawn_food(v2i pos);
+void world_update();
 
 #endif// SERVER_WORLD_H

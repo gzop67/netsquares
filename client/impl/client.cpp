@@ -1,5 +1,6 @@
 #include "../../defines.h"
 #include "../client.h"
+#include "../../netsquares.h"
 #include "../../packets.h"
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -144,14 +145,30 @@ poll_server(void *)
 {
   for (;;)
   {
-    char buf[256];
+    char buf[1024];
     struct sockaddr_storage their_addr;
     socklen_t sz = sizeof(sockaddr_storage);
-    s32 r = recvfrom(udp_socket, buf, 256-1, 0, (sockaddr*)&their_addr,
+    s32 r = recvfrom(udp_socket, buf, 1024-1, 0, (sockaddr*)&their_addr,
         &sz);
     if (r > 0 && r != SOCKET_ERROR)
     {
-      fprintf(stdout, ":: %s\n", buf);
+      net_header *nh = (net_header*)buf;
+      switch (nh->_type)
+      {
+        case HEARTBEAT:
+          {
+            fprintf(stdout, "Heartbeat packet received.\n");
+          } break;
+        case WORLD_STATE:
+          {
+            fprintf(stdout, "World state packet received.\n");
+            set_world_state((world_state_packet*)buf);
+          } break;
+        default:
+          {
+            //Not handled.
+          } break;
+      }
     }
     else
     {
