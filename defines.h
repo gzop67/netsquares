@@ -5,7 +5,8 @@
 #include <stdint.h>
 #include <assert.h>
 
-#define PORT "22"
+#define LOGIN_PORT "6665"
+#define GAME_PORT "6666"
 
 #define TRUE 1
 #define FALSE 0

@@ -4,6 +4,8 @@
 #include "../client/client.h"
 
 #include <stdio.h>
+#include <windows.h>
+#include <process.h>
 
 int main(int argc, char **argv)
 {
@@ -13,12 +15,13 @@ int main(int argc, char **argv)
     if (client_connect())
     {
       fprintf(stdout, "Client connected.\n");
-      for (;;)
-      {
-        poll_server();
-      }
-      return (0);
+      break;
     }
+  }
+  HANDLE poll_thread = (HANDLE)_beginthread(poll_server, 0, NULL);
+  for (;;)
+  {
+    win32_update();
   }
   return (0);
 }

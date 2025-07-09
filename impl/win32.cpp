@@ -1,7 +1,9 @@
 #include "../defines.h"
 #include "../win32.h"
+#include "../netsquares.h"
 #include <windows.h>
 
+internal HWND hwnd;
 LRESULT CALLBACK
 window_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -11,10 +13,6 @@ window_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     //{
 
     //} break;
-    case WM_ERASEBKGND:
-    {
-      return (1);
-    } break;
     //case WM_WINDOWPOSCHANGING:
     //case WM_WINDOWPOSCHANGED:
     //{
@@ -28,9 +26,17 @@ window_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         HBRUSH fill = CreateSolidBrush(RGB(0,0,0));
         FillRect(hdc, &ps.rcPaint, fill);
 
-        HBRUSH sq_col = CreateSolidBrush(RGB(255,0,0));
-        RECT rct = {0, 0, SQUARE_SIZE, SQUARE_SIZE};
-        FillRect(hdc, &rct, sq_col);
+        RECT *world_rects, player_rect;
+        u32 count = get_world_rects(&world_rects);
+        get_player_rect(&player_rect);
+        HBRUSH world_col = CreateSolidBrush(RGB(255,0,64));
+        for (u32 i = 0; i < count; i++)
+        {
+          FillRect(hdc, &world_rects[i], world_col);
+        }
+
+        HBRUSH player_col = CreateSolidBrush(RGB(255,0,0));
+        FillRect(hdc, &player_rect, player_col);
 
         EndPaint(hwnd, &ps);
       } break;
@@ -85,7 +91,7 @@ win32_initialise()
 
   AdjustWindowRect(&rect, win_style, FALSE);
 
-  HWND hwnd = CreateWindowEx(
+  hwnd = CreateWindowEx(
       0,//0x00200000L,
       wnd.lpszClassName,
       "netsquares", 
@@ -100,5 +106,17 @@ win32_initialise()
 
   ShowWindow(hwnd, SW_SHOW);
   UpdateWindow(hwnd);
+}
+
+bool8
+win32_update()
+{
+  MSG msg;
+  while (PeekMessage(&msg, hwnd, 0, 0, PM_REMOVE))
+  {
+    TranslateMessage(&msg);
+    DispatchMessage(&msg);
+  }
+  return (TRUE);
 }
 

@@ -3,7 +3,7 @@
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#include <processthreadsapi.h>
+#include <process.h>
 #include <stdio.h>
 #include <cstdlib>
 
@@ -39,18 +39,14 @@ struct client_connection_tracker
 internal client_connection_tracker connected_clients[MAX_CLIENTS];
 
 internal void
-sockaddr_to_ip(sockaddr_storage *sa, char *dst)
+winsock_err(const char *msg)
 {
-  if (((sockaddr*)sa)->sa_family == AF_INET)
-  {
-    memcpy(dst, &(((sockaddr_in*)sa)->sin_addr), INET_ADDRSTRLEN);
-  }
-  else if (((sockaddr*)sa)->sa_family == AF_INET6)
-  {
-    memcpy(dst, &(((sockaddr_in6*)sa)->sin6_addr), INET6_ADDRSTRLEN);
-  }
-  else
-    assert(FALSE && "Fail sock_to_ip");
+  wchar_t *s = NULL;
+  FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+      FORMAT_MESSAGE_IGNORE_INSERTS, NULL, WSAGetLastError(),
+      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&s, 0, NULL);
+  fprintf(stdout, "From %s, failed with : %S\n", msg, s);
+  assert(FALSE && "");
 }
 
 internal u32
@@ -90,14 +86,14 @@ s32 get_empty_login_socket_index()
   return (-1);
 }
 
+//TEMP passing username here.
 internal bool8
-connect_client(u32 login_connections_index, const char *username) //TEMP passing username here.
+connect_client(u32 login_connections_index, const char *username)
 {
   login_connection *lc = &login_connections[login_connections_index];
   client_connection cc;
   cc._client_id = dumb_hash(username);
   cc._session_id = random_u32();
-  //cc._address_info = lc->_sockaddr_storage;
 
   for (u32 i = 0; i < MAX_CLIENTS; i++)
   {
@@ -123,13 +119,8 @@ connect_client(u32 login_connections_index, const char *username) //TEMP passing
       }
       else
       {
-        wchar_t *s = NULL;
-        FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, 
-            NULL, WSAGetLastError(),
-            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-            (LPWSTR)&s, 0, NULL);
-        fprintf(stdout, "%S\n", s);
-        assert(FALSE && "Ack recvfrom fail.");
+        fprintf(stdout, "prob timedout.\n");
+        winsock_err("ping recvfrom()");
       }
       if (closesocket(lc->_socket) == SOCKET_ERROR)
       {
@@ -142,11 +133,12 @@ connect_client(u32 login_connections_index, const char *username) //TEMP passing
       }
     }
   }
+  assert(FALSE && "Ran out of connection bandwidth.");
   return (FALSE);
 }
 
-DWORD WINAPI
-server_maintain_connections(LPVOID lpParam)
+void
+server_maintain_connections(void*)
 {
   char ping[5] = {'p', 'i', 'n', 'g', '\0'};
 
@@ -162,36 +154,30 @@ server_maintain_connections(LPVOID lpParam)
         s32 sz = sizeof(sockaddr_storage);
         s32 r = sendto(udp_socket, ping, 4, 0,
               (sockaddr*)&c->_client_connection._address_info,
-              //(sockaddr*)ii->ai_addr,
               sz);
-
-        sockaddr_in *sin = (sockaddr_in*)&c->_client_connection._address_info;
-        char hname[128];
-        getnameinfo((sockaddr*)&c->_client_connection._address_info, sizeof(c->_client_connection._address_info), hname, 128,
-            NULL, 0, 0);
-        fprintf(stdout, "packet sent to: %s on %s:%d\n", 
-            hname, inet_ntoa(sin->sin_addr), sin->sin_port);
         if (r == SOCKET_ERROR)
         {
-          wchar_t *s = NULL;
-          FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, 
-              NULL, WSAGetLastError(),
-              MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-              (LPWSTR)&s, 0, NULL);
-          fprintf(stdout, "%S\n", s);
+          winsock_err("udp sendto()");
         }
         else
         {
-          //fprintf(stdout, "should have sent %d bytes\n", r);
         }
+
+        sockaddr_in *sin = (sockaddr_in*)&c->_client_connection._address_info;
+        char hname[128];
+        getnameinfo((sockaddr*)&c->_client_connection._address_info,
+            sizeof(c->_client_connection._address_info), hname, 128, NULL, 0,
+            0);
+        fprintf(stdout, "packet sent to: %s on %s:%d\n", 
+            hname, inet_ntoa(sin->sin_addr), sin->sin_port);
+
       }
     }
   }
-  return (0);
 }
 
-DWORD WINAPI
-server_handle_logins(LPVOID lpParam)
+void
+server_handle_logins(void *)
 {
   for (;;)
   {
@@ -209,7 +195,6 @@ server_handle_logins(LPVOID lpParam)
             if (connect_client(i, p._username))
             {
               login_connections[i]._socket = INVALID_SOCKET;
-              //memset(login_connections[i]._ip, 0, INET6_ADDRSTRLEN);
             }
             else
             {
@@ -220,11 +205,10 @@ server_handle_logins(LPVOID lpParam)
       }
     }
   }
-  return (0);
 }
 
-DWORD WINAPI
-server_listen_for_new_connections(LPVOID lpParam)
+void
+server_listen_for_new_connections(void*)
 {
   WSADATA wsa_data;
   if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0)
@@ -237,27 +221,26 @@ server_listen_for_new_connections(LPVOID lpParam)
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
 
-  if (getaddrinfo("127.0.0.1", PORT, &hints, &address_info) != 0)
+  if (getaddrinfo("127.0.0.1", LOGIN_PORT, &hints, &address_info) != 0)
   {
-    fprintf(stdout, "faili\n");
-    assert(FALSE && "Addr fail\n");
+    winsock_err("getaddrinfo()");
   }
 
-  SOCKET s = socket(address_info->ai_family, address_info->ai_socktype,
+  SOCKET tcp_socket = socket(address_info->ai_family, address_info->ai_socktype,
       address_info->ai_protocol);
-  if (s == INVALID_SOCKET)
+  if (tcp_socket == INVALID_SOCKET)
   {
-    assert(FALSE && "Socket failed\n");
+    winsock_err("socket()");
   }
 
-  if (bind(s, address_info->ai_addr, address_info->ai_addrlen) == SOCKET_ERROR)
+  if (bind(tcp_socket, address_info->ai_addr, address_info->ai_addrlen) == SOCKET_ERROR)
   {
-    assert(FALSE && "Bind fail\n");
+    winsock_err("bind()");
   }
 
-  if (listen(s, 5) == SOCKET_ERROR)
+  if (listen(tcp_socket, 5) == SOCKET_ERROR)
   {
-    assert(FALSE && "Listen fail\n");
+    winsock_err("listen()");
   }
 
   freeaddrinfo(address_info);
@@ -268,7 +251,7 @@ server_listen_for_new_connections(LPVOID lpParam)
     socklen_t sz = sizeof(sockaddr_storage);
     SOCKET connection_socket;
 
-    if ((connection_socket = accept(s, (sockaddr*)&their_addr, &sz))
+    if ((connection_socket = accept(tcp_socket, (sockaddr*)&their_addr, &sz))
         != INVALID_SOCKET)
     {
       s32 sid = get_empty_login_socket_index();
@@ -285,15 +268,13 @@ server_listen_for_new_connections(LPVOID lpParam)
       }
       else
       {
-        assert(FALSE && "Err");
+        winsock_err("accept()");
       }
     }
     else
     {
-      //new connection accepted.
     }
   }
-  return (0);
 }
 
 internal HANDLE server_function_threads[3];
@@ -304,49 +285,49 @@ main (int argc, char **argv)
   WSADATA wsa_data;
   if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0)
   {
-    fprintf(stdout, "WTF\n");
     assert(FALSE && "Fail startup.");
   }
   struct addrinfo hints;
   struct addrinfo *address_info;
   memset(&hints, 0, sizeof(struct addrinfo));
-  hints.ai_family = AF_INET;
+  hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_DGRAM;
-  if (getaddrinfo("127.0.0.1", "6661", &hints, &address_info) != 0)
+  if (getaddrinfo("127.0.0.1", GAME_PORT, &hints, &address_info) != 0)
   {
-    fprintf(stdout, "faili\n");
-    assert(FALSE && "Addr fail\n");
+    winsock_err("getaddrinfo()");
   }
   udp_socket = socket(address_info->ai_family,
       address_info->ai_socktype, address_info->ai_protocol);
-  if (bind(udp_socket, address_info->ai_addr, address_info->ai_addrlen) == SOCKET_ERROR)
-  {
-
-  }
   if (udp_socket == INVALID_SOCKET)
   {
-    assert(FALSE && "UDP SOCK FAIL.");
+    winsock_err("udp socket()");
   }
+  if (bind(udp_socket, address_info->ai_addr, address_info->ai_addrlen)
+      == SOCKET_ERROR)
+  {
+    winsock_err("udp bind()");
+  }
+
   freeaddrinfo(address_info);
   for (u32 i = 0; i < MAX_LOGIN_CONNECTIONS; i++)
   {
     login_connections[i]._socket = INVALID_SOCKET;
   }
-  server_function_threads[0] = CreateThread(
-     NULL, 0, server_listen_for_new_connections, NULL, 0, NULL);
+  server_function_threads[0] = (HANDLE)_beginthread(
+     server_listen_for_new_connections, 0, NULL);
   if (!server_function_threads[0])
   {
     assert(FALSE && "Failed to create listen_for_new_connections thread.");
   }
-  server_function_threads[1] = CreateThread(
-     NULL, 0, server_handle_logins, NULL, 0, NULL);
+  server_function_threads[1] = (HANDLE)_beginthread(
+     server_handle_logins, 0, NULL);
   if (!server_function_threads[1])
   {
     assert(FALSE && "Failed to create server_handle_logins thread.");
   }
 
-  server_function_threads[2] = CreateThread(
-     NULL, 0, server_maintain_connections, NULL, 0, NULL);
+  server_function_threads[2] = (HANDLE)_beginthread(
+     server_maintain_connections, 0, NULL);
   if (!server_function_threads[2])
   {
     assert(FALSE && "Failed to create server_maintain thread.");
