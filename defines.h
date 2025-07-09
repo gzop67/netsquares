@@ -15,6 +15,9 @@
 #define WINDOW_HEIGHT 256
 
 #define SQUARE_SIZE 32
+#define FOOD_MAX 64
+#define FOOD_SIZE 5.0f
+#define PLAYER_SIZE 10.0f
 
 #define internal static
 #define global static
@@ -35,5 +38,17 @@ typedef int8_t s8;
 
 typedef float f32;
 typedef double f64;
+
+typedef struct v2f v2f;
+struct v2f
+{
+  f32 _x, _y;
+};
+typedef struct v2i v2i;
+struct v2i
+{
+  u32 _x, _y;
+};
+
 
 #endif// NETSQUARES_DEFINES_H

@@ -3,42 +3,75 @@
 #include "../netsquares.h"
 #include <windows.h>
 
+internal bool8 keys[4]; //up, down, left, right
+#define MOVE_SPEED 0.01
 internal HWND hwnd;
+internal HBRUSH fill, world_col, player_col;
+
 LRESULT CALLBACK
 window_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
   switch(msg)
   {
-    //case WM_NCPAINT:
-    //{
-
-    //} break;
-    //case WM_WINDOWPOSCHANGING:
-    //case WM_WINDOWPOSCHANGED:
-    //{
-
-    //} break;
+    case WM_ERASEBKGND:
+      {
+      } break;
     case WM_PAINT:
       {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
 
-        HBRUSH fill = CreateSolidBrush(RGB(0,0,0));
         FillRect(hdc, &ps.rcPaint, fill);
 
-        RECT *world_rects, player_rect;
-        u32 count = get_world_rects(&world_rects);
+        RECT world_rects[64], player_rect;
+        u32 count = get_world_rects(world_rects);
         get_player_rect(&player_rect);
-        HBRUSH world_col = CreateSolidBrush(RGB(255,0,64));
         for (u32 i = 0; i < count; i++)
         {
           FillRect(hdc, &world_rects[i], world_col);
         }
 
-        HBRUSH player_col = CreateSolidBrush(RGB(255,0,0));
         FillRect(hdc, &player_rect, player_col);
 
         EndPaint(hwnd, &ps);
+      } break;
+    case WM_KEYDOWN: 
+      {
+        if (wParam == VK_UP)
+        {
+          keys[0] = TRUE;
+        }
+        if (wParam == VK_DOWN)
+        {
+          keys[1] = TRUE;
+        }
+        if (wParam == VK_LEFT)
+        {
+          keys[2] = TRUE;
+        }
+        if (wParam == VK_RIGHT)
+        {
+          keys[3] = TRUE;
+        }
+      } break;
+    case WM_KEYUP:
+    {
+        if (wParam == VK_UP)
+        {
+          keys[0] = FALSE;
+        }
+        if (wParam == VK_DOWN)
+        {
+          keys[1] = FALSE;
+        }
+        if (wParam == VK_LEFT)
+        {
+          keys[2] = FALSE;
+        }
+        if (wParam == VK_RIGHT)
+        {
+          keys[3] = FALSE;
+        }
       } break;
     case WM_SETCURSOR: 
       {
@@ -106,6 +139,10 @@ win32_initialise()
 
   ShowWindow(hwnd, SW_SHOW);
   UpdateWindow(hwnd);
+
+  world_col = CreateSolidBrush(RGB(96,0,64));
+  player_col = CreateSolidBrush(RGB(255,0,0));
+  fill = CreateSolidBrush(RGB(0,0,0));
 }
 
 bool8
@@ -117,6 +154,28 @@ win32_update()
     TranslateMessage(&msg);
     DispatchMessage(&msg);
   }
+  RECT rect;
+  GetClientRect(hwnd, &rect);
+  InvalidateRect(hwnd, &rect, TRUE);
+
+  if (keys[0])
+  {
+    move_player({0, -MOVE_SPEED});
+  }
+  if (keys[1])
+  {
+    move_player({0, MOVE_SPEED});
+  }
+  if (keys[2])
+  {
+    move_player({-MOVE_SPEED, 0});
+  }
+  if (keys[3])
+  {
+    move_player({MOVE_SPEED, 0});
+  }
+
+
   return (TRUE);
 }
 

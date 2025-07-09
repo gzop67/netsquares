@@ -7,7 +7,8 @@ typedef enum PACKET_TYPE : u8
 {
   ACK,
   LOGIN,
-  HEARTBEAT
+  HEARTBEAT,
+  WORLD_STATE
 } PACKET_TYPE;
 
 typedef struct net_header net_header;
@@ -15,6 +16,7 @@ struct net_header
 {
   u8 _type;
   u8 _padd[3];
+  u32 _size; //NOTE (23:08PM 250709): includes the size of this net_header.
 };
 
 typedef struct login_packet login_packet;
@@ -25,6 +27,18 @@ struct login_packet
   char _password[32];
 };
 
+typedef struct world_state_packet world_state_packet;
+struct world_state_packet
+{
+  u8 _food_count;
+  v2i _food_pos[MAX_FOOD];
+};
+
+/*
+ * TODO (23:09PM 250709):
+ *   _make_packet()_ is just pass-thru, input packet to dst for now, later
+ * it will include conversions to ensure network byte order.
+ **/
 u32 make_packet(enum PACKET_TYPE type, void *packet, char *dst);
 
 #endif// PACKETS_H
