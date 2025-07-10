@@ -23,7 +23,7 @@ update()
   pack._header._size = sizeof(pack);
   pack._player_pos = player_pos;
 
-  send_to_server((char*)&pack, sizeof(pack));
+  send_to_server((char*)&pack, sizeof(client_state_packet));
 }
 
 void

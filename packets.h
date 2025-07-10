@@ -7,6 +7,7 @@ typedef enum PACKET_TYPE : u8
 {
   ACK,
   LOGIN,
+  ESTABLISH_COMMS,
   HEARTBEAT,
   WORLD_STATE,
   CLIENT_STATE,
@@ -25,6 +26,12 @@ struct ping_packet
 {
   net_header _header;
   char _ping[5] = {'p', 'i', 'n', 'g', '\0'};
+};
+typedef struct establish_comms_packet establish_comms_packet;
+struct establish_comms_packet
+{
+  net_header _header;
+  u32 _uid;
 };
 
 typedef struct login_packet login_packet;

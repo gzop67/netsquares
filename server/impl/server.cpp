@@ -35,6 +35,7 @@ struct client_connection_tracker
 {
   client_connection _client_connection;
   u32 _ms_since_last_heartbeat;
+  u32 _temp_establish_uid;
   bool8 _alive;
 };
 
@@ -104,26 +105,14 @@ connect_client(u32 login_connections_index, const char *username)
       connected_clients[i]._alive = TRUE;
       connected_clients[i]._ms_since_last_heartbeat = 0;
 
-      char buf[16];
-      buf[0] = 9;
-      send(lc->_socket, buf, 16, 0);
+      establish_comms_packet ecp;
+      ecp._header._type = ESTABLISH_COMMS;
+      ecp._header._size = sizeof(ecp);
+      ecp._uid = rand();
+      connected_clients[i]._temp_establish_uid = ecp._uid;
+      send(lc->_socket, (char*)&ecp, ecp._header._size, 0);
+      connected_clients[i]._client_connection = cc;
 
-      struct sockaddr_storage their_addr;
-      socklen_t sz = sizeof(their_addr);
-
-      s32 r = recvfrom(udp_socket, buf, 16-1, 0, (sockaddr*)&their_addr,
-          &sz);
-      if (r > 0 && r != SOCKET_ERROR)
-      {
-        fprintf(stdout, "ACK:: %s\n", buf);
-        cc._address_info = *(sockaddr_storage*)&their_addr;
-        connected_clients[i]._client_connection = cc;
-      }
-      else
-      {
-        fprintf(stdout, "prob timedout.\n");
-        winsock_err("ping recvfrom()");
-      }
       if (closesocket(lc->_socket) == SOCKET_ERROR)
       {
         assert(FALSE && "Failed to close socket on client connect.");
@@ -172,7 +161,7 @@ send_packet_to_all_clients(void *packet, u32 size)
   return (FALSE);
 }
 
-void
+internal void
 server_maintain_connections(void*)
 {
   ping_packet ping;
@@ -213,7 +202,7 @@ server_maintain_connections(void*)
   }
 }
 
-void
+internal void
 server_handle_logins(void *)
 {
   for (;;)
@@ -244,7 +233,51 @@ server_handle_logins(void *)
   }
 }
 
-void
+internal void
+server_listen_to_clients(void*)
+{
+  char buf[2048];
+  struct sockaddr_storage their_addr;
+  socklen_t sz = sizeof(their_addr);
+
+  for (;;)
+  {
+    s32 r = recvfrom(udp_socket, buf, 2048-1, 0, (sockaddr*)&their_addr,
+        &sz);
+    if (r > 0)
+    {
+      net_header *header = (net_header*)&buf;
+      switch (header->_type)
+      {
+        case CLIENT_STATE:
+          {
+            client_state_packet *p = (client_state_packet*)&buf;
+            fprintf(stdout, "client packet recv\n");
+          } break;
+        case ESTABLISH_COMMS:
+          {
+            establish_comms_packet *ecp = (establish_comms_packet*)buf;
+            for (u32 i = 0; i < MAX_CLIENTS; i++)
+            {
+              if (connected_clients[i]._temp_establish_uid == ecp->_uid)
+              {
+                fprintf(stdout, "Established:: %s\n", buf);
+                connected_clients[i]._client_connection._address_info =
+                  *(sockaddr_storage*)&their_addr;
+                break;
+              }
+            }
+          } break;
+        default:
+          {
+            //not handled.
+          } break;
+      }
+    }
+  }
+}
+
+internal void
 server_listen_for_new_connections(void*)
 {
   WSADATA wsa_data;
@@ -314,7 +347,7 @@ server_listen_for_new_connections(void*)
   }
 }
 
-internal HANDLE server_function_threads[3];
+internal HANDLE server_function_threads[4];
 
 internal LARGE_INTEGER timing_first, timing_last, timing_freq;
 internal void
@@ -388,6 +421,13 @@ main (int argc, char **argv)
     assert(FALSE && "Failed to create server_maintain thread.");
   }
 
+  server_function_threads[3] = (HANDLE)_beginthread(
+     server_listen_to_clients, 0, NULL);
+  if (!server_function_threads[3])
+  {
+    assert(FALSE && "Failed to create server_listen_to_clients thread.");
+  }
+
   for (;;)
   {
     dt_start();
@@ -401,7 +441,7 @@ main (int argc, char **argv)
     fprintf(stdout, "dt: %f\n", dt + cap_delta);
   }
 
-  WaitForMultipleObjects(3, server_function_threads, TRUE, INFINITE);
+  WaitForMultipleObjects(4, server_function_threads, TRUE, INFINITE);
 
   timeEndPeriod(1);
   return (0);

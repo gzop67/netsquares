@@ -96,7 +96,8 @@ client_connect()
         {
           if (recv(s, buf, 1024, 0) > 0)
           {
-            if (buf[0] == 9)
+            establish_comms_packet *ecp = (establish_comms_packet*)buf;
+            if (ecp->_header._type == ESTABLISH_COMMS)
             {
               fprintf(stdout, "Login accepted.\n");
               if (closesocket(s) == SOCKET_ERROR)
@@ -104,14 +105,13 @@ client_connect()
                 assert(FALSE && "Failed to close socket on client connect.");
               }
               bind_for_udp();
-              char ping[5] = {'p', 'i', 'n', 'g', '\0'};
 
               struct sockaddr_in addr;
               addr.sin_family = AF_INET;
               addr.sin_port = htons(atoi(GAME_PORT));
               addr.sin_addr.s_addr = inet_addr("127.0.0.1");
               s32 sz = sizeof(sockaddr_in);
-              s32 r = sendto(udp_socket, ping, 4, 0, (sockaddr*)&addr, sz);
+              s32 r = sendto(udp_socket, (char*)ecp, ecp->_header._size, 0, (sockaddr*)&addr, sz);
               if (r == SOCKET_ERROR)
               {
                 wchar_t *s = NULL;
