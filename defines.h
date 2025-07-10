@@ -19,6 +19,8 @@
 #define FOOD_SIZE 5.0f
 #define PLAYER_SIZE 10.0f
 
+#define WORLD_UPDATE_FREQ 30
+
 #define internal static
 #define global static
 #define local_persist static

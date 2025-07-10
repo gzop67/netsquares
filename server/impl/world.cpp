@@ -36,10 +36,17 @@ world_update()
   memcpy(world_state._food_pos, food_pos, sizeof(v2i) * FOOD_MAX);
   send_packet_to_all_clients(&world_state, sizeof(world_state));
 
-  Sleep(5000);
-  fprintf(stdout, "%d\n", rand());
   if (rand() % 100 < 10)
   {
     spawn_food({(u32)rand() % WINDOW_WIDTH, (u32)rand() % WINDOW_HEIGHT});
   }
 }
+
+
+void
+time_mark_start()
+{
+}
+
+
+

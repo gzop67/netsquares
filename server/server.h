@@ -2,6 +2,8 @@
 #define SERVER_SERVER_H
 #include "../defines.h"
 
+void update_time();
+
 bool8 send_packet_to_all_clients(void *packet, u32 size);
 
 bool8 db_add_register_new(char *name, char *pass);

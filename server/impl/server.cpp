@@ -7,6 +7,7 @@
 #include <process.h>
 #include <stdio.h>
 #include <cstdlib>
+#include <timeapi.h>
 
 #define MAX_LOGIN_CONNECTIONS 16
 #define MAX_CLIENTS 32
@@ -314,9 +315,27 @@ server_listen_for_new_connections(void*)
 
 internal HANDLE server_function_threads[3];
 
+internal LARGE_INTEGER timing_first, timing_last, timing_freq;
+internal void
+dt_start()
+{
+  QueryPerformanceCounter(&timing_first);
+}
+internal f32
+dt_end()
+{
+  QueryPerformanceCounter(&timing_last);
+  f32 dt = (((f64)timing_last.QuadPart -
+        (f64)timing_first.QuadPart)) / (f64)timing_freq.QuadPart;
+  return (dt);
+}
+
 int
 main (int argc, char **argv)
 {
+  QueryPerformanceFrequency(&timing_freq);
+  timeBeginPeriod(1);
+
   WSADATA wsa_data;
   if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0)
   {
@@ -371,12 +390,22 @@ main (int argc, char **argv)
   spawn_food({50,50});
   spawn_food({100,50});
   spawn_food({50,100});
+
   for (;;)
   {
+    dt_start();
     world_update();
+    f32 dt = dt_end();
+    f32 cap_delta = WORLD_UPDATE_FREQ / 1000.0f;
+    if (dt < cap_delta)
+    {
+      Sleep(cap_delta * 1000);
+    }
+    fprintf(stdout, "dt: %f\n", dt + cap_delta);
   }
 
   WaitForMultipleObjects(3, server_function_threads, TRUE, INFINITE);
 
+  timeEndPeriod(1);
   return (0);
 }
