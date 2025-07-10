@@ -183,3 +183,18 @@ poll_server(void *)
   }
 }
 
+bool8
+send_to_server(char* dat, u32 size)
+{
+  struct sockaddr_in addr;
+  addr.sin_family = AF_INET;
+  addr.sin_port = htons(atoi(GAME_PORT));
+  addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+  s32 sz = sizeof(sockaddr_in);
+  s32 r = sendto(udp_socket, dat, size, 0, (sockaddr*)&addr, sz);
+  if (r > 0 && r != SOCKET_ERROR)
+    return (TRUE);
+  fprintf(stdout, "Failed to send to server.\n");
+  return (FALSE);
+}
+

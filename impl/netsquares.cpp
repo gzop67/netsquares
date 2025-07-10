@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <windows.h>
 #include <process.h>
+#include <timeapi.h>
 
 internal u32 food_count;
 internal v2i food[FOOD_MAX];
@@ -65,6 +66,21 @@ get_world_rects(RECT *world_rects)
   return (food_count);
 }
 
+internal LARGE_INTEGER timing_first, timing_last, timing_freq;
+internal void
+dt_start()
+{
+  QueryPerformanceCounter(&timing_first);
+}
+internal f32
+dt_end()
+{
+  QueryPerformanceCounter(&timing_last);
+  f32 dt = (((f64)timing_last.QuadPart -
+        (f64)timing_first.QuadPart)) / (f64)timing_freq.QuadPart;
+  return (dt);
+}
+
 int main(int argc, char **argv)
 {
   win32_initialise();
@@ -76,10 +92,23 @@ int main(int argc, char **argv)
       break;
     }
   }
+  QueryPerformanceFrequency(&timing_freq);
+  timeBeginPeriod(1);
+
   HANDLE poll_thread = (HANDLE)_beginthread(poll_server, 0, NULL);
   for (;;)
   {
+    //update();
     win32_update();
+
+    dt_start();
+    f32 dt = dt_end();
+    f32 cap_delta = WORLD_UPDATE_FREQ / 1000.0f;
+    if (dt < cap_delta)
+    {
+      Sleep(cap_delta * 1000);
+    }
   }
+  timeEndPeriod(1);
   return (0);
 }

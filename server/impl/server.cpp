@@ -387,10 +387,6 @@ main (int argc, char **argv)
     assert(FALSE && "Failed to create server_maintain thread.");
   }
 
-  spawn_food({50,50});
-  spawn_food({100,50});
-  spawn_food({50,100});
-
   for (;;)
   {
     dt_start();
