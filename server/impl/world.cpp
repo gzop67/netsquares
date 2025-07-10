@@ -34,6 +34,19 @@ player_join(player p)
     }
   }
 }
+void
+player_leave(u32 client_id)
+{
+  for (u32 i = 0; i < MAX_CLIENTS; i++)
+  {
+    if (players[i]._client_id == client_id)
+    {
+      players[i]._client_id = 0;
+      return;
+    }
+  }
+  assert(FALSE && "_player_leave()_ player not found.");
+}
 bool8
 spawn_food(v2i pos)
 {

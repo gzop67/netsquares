@@ -9,6 +9,8 @@
 #include <cstdlib>
 #include <timeapi.h>
 
+internal u64 uptime;
+
 typedef struct login_connection login_connection;
 struct login_connection
 {
@@ -31,7 +33,7 @@ typedef struct client_connection_tracker client_connection_tracker;
 struct client_connection_tracker
 {
   client_connection _client_connection;
-  u32 _ms_since_last_heartbeat;
+  u64 _client_last_timestamp;
   u32 _temp_establish_uid;
   bool8 _alive;
 };
@@ -100,13 +102,12 @@ connect_client(u32 login_connections_index, const char *username)
     if (!connected_clients[i]._alive)
     {
       connected_clients[i]._alive = TRUE;
-      connected_clients[i]._ms_since_last_heartbeat = 0;
-
+      connected_clients[i]._client_last_timestamp = uptime;
       establish_comms_packet ecp;
       ecp._header._type = ESTABLISH_COMMS;
       ecp._header._size = sizeof(ecp);
       ecp._uid = rand();
-      ecp._client_id = cc._client_id;
+      ecp._header._client_id = cc._client_id;
       connected_clients[i]._temp_establish_uid = ecp._uid;
       send(lc->_socket, (char*)&ecp, ecp._header._size, 0);
       connected_clients[i]._client_connection = cc;
@@ -160,6 +161,21 @@ send_packet_to_all_clients(void *packet, u32 size)
 }
 
 internal void
+disconnect_client(u32 index)
+{
+  client_connection_tracker *c = &connected_clients[index];
+  sockaddr_in *sin = (sockaddr_in*)&c->_client_connection._address_info;
+  char hname[128];
+  getnameinfo((sockaddr*)&c->_client_connection._address_info,
+      sizeof(c->_client_connection._address_info), hname, 128, NULL, 0,
+      0);
+  fprintf(stdout, "Server disconnected client: %s on %s:%d\n", 
+      hname, inet_ntoa(sin->sin_addr), sin->sin_port);
+  player_leave(c->_client_connection._client_id);
+  memset(&connected_clients[index], 0, sizeof(client_connection_tracker));
+}
+
+internal void
 server_maintain_connections(void*)
 {
   ping_packet ping;
@@ -168,6 +184,7 @@ server_maintain_connections(void*)
   for (;;)
   {
     Sleep(1000);
+    ping._timestamp = uptime;
     for (u32 i = 0; i < MAX_CLIENTS; i++)
     {
       if (connected_clients[i]._alive)
@@ -195,6 +212,10 @@ server_maintain_connections(void*)
         fprintf(stdout, "ping sent to: %s on %s:%d\n", 
             hname, inet_ntoa(sin->sin_addr), sin->sin_port);
 
+        if ((uptime - connected_clients[i]._client_last_timestamp) > 5000)
+        {
+          disconnect_client(i);
+        }
       }
     }
   }
@@ -249,7 +270,7 @@ server_listen_to_clients(void*)
       {
         case CLIENT_STATE:
           {
-            client_state_packet *p = (client_state_packet*)&buf;
+            client_state_packet *p = (client_state_packet*)buf;
             player pl;
             pl._client_id = p->_client_id;
             pl._pos = p->_player_pos;
@@ -270,6 +291,22 @@ server_listen_to_clients(void*)
                 break;
               }
             }
+          } break;
+        case HEARTBEAT:
+          {
+            ping_packet *p = (ping_packet*)buf;
+            for (u32 i = 0; i < MAX_CLIENTS; i++)
+            {
+              if (connected_clients[i]._client_connection._client_id
+                  == p->_header._client_id)
+              {
+                fprintf(stdout, "timestamp updated.. %lld, %lld\n",
+                    p->_timestamp, uptime);
+                connected_clients[i]._client_last_timestamp = p->_timestamp;
+                break;
+              }
+            }
+
           } break;
         default:
           {
@@ -441,7 +478,18 @@ main (int argc, char **argv)
     {
       Sleep((cap_delta-dt) * 1000);
     }
-    fprintf(stdout, "dt: %f\n", dt + cap_delta);
+    f32 add = ((cap_delta + dt) * 1000.0f);
+    f64 ut = (f64)uptime + add;
+    f64 days = (f64)(ut / 1000.0f / 60.0f / 60.0f / 24.0f);
+    f64 hr = (days - (f64)((u32)days)) * 24.0f;
+    f64 min = (hr - (f64)((u32)hr)) * 60.0f;
+    f64 sec = (min - (f64)((u32)min)) * 60.0f;
+
+    uptime += (u64)add;
+    /*
+    fprintf(stdout, "uptime: %d days, %d hrs, %d mins, %d sec\n",
+        (u32)days, (u32)hr, (u32)min, (u32)sec);
+        */
   }
 
   WaitForMultipleObjects(4, server_function_threads, TRUE, INFINITE);

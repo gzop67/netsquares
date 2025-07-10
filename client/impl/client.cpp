@@ -11,6 +11,8 @@ internal SOCKET udp_socket;
 internal struct addrinfo *server_addr_info;
 internal bool8 has_connection;
 internal u32 client_id;
+internal u64 server_last_timestamp;
+internal bool8 server_ping_expected;
 
 u32
 get_client_id()
@@ -106,7 +108,7 @@ client_connect()
             establish_comms_packet *ecp = (establish_comms_packet*)buf;
             if (ecp->_header._type == ESTABLISH_COMMS)
             {
-              client_id = ecp->_client_id;
+              client_id = ecp->_header._client_id;
               fprintf(stdout, "Login accepted.\n");
               if (closesocket(s) == SOCKET_ERROR)
               {
@@ -165,7 +167,16 @@ poll_server(void *)
       {
         case HEARTBEAT:
           {
-            fprintf(stdout, "Heartbeat packet received.\n");
+            ping_packet *ping = (ping_packet*)buf;
+            server_last_timestamp = ping->_timestamp;
+            server_ping_expected = TRUE;
+
+            if (send_to_server((char*)ping, ping->_header._size))
+            {
+              server_ping_expected = FALSE;
+            }
+
+            fprintf(stdout, "Heartbeat packet received, %lld.\n", ping->_timestamp);
           } break;
         case WORLD_STATE:
           {
@@ -194,6 +205,16 @@ poll_server(void *)
 bool8
 send_to_server(char* dat, u32 size)
 {
+
+  /* FIX (23:49PM 250710):
+   *   TEMP code to set client_id for the net header, unsafe.
+   * */
+  net_header *n = (net_header*)dat;
+  n->_client_id = client_id;
+  //TEMP
+
+
+
   struct sockaddr_in addr;
   addr.sin_family = AF_INET;
   addr.sin_port = htons(atoi(GAME_PORT));

@@ -18,6 +18,7 @@ struct net_header
 {
   u8 _type;
   u8 _padd[3];
+  u32 _client_id;
   u32 _size; //NOTE (23:08PM 250709): includes the size of this net_header.
 };
 
@@ -25,14 +26,13 @@ typedef struct ping_packet ping_packet;
 struct ping_packet
 {
   net_header _header;
-  char _ping[5] = {'p', 'i', 'n', 'g', '\0'};
+  u64 _timestamp;
 };
 typedef struct establish_comms_packet establish_comms_packet;
 struct establish_comms_packet
 {
   net_header _header;
   u32 _uid;
-  u32 _client_id;
 };
 
 typedef struct login_packet login_packet;

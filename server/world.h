@@ -14,5 +14,6 @@ struct player
 
 void player_update(player p);
 void player_join(player p);
+void player_leave(u32 client_id);
 
 #endif// SERVER_WORLD_H
