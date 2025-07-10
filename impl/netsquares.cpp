@@ -13,7 +13,18 @@ internal v2i food[FOOD_MAX];
 internal bool8 food_alive[FOOD_MAX];
 internal RECT temp[FOOD_MAX];
 
-internal v2f player_pos;
+internal v2i player_pos;
+
+internal void
+update()
+{
+  client_state_packet pack;
+  pack._header._type = CLIENT_STATE;
+  pack._header._size = sizeof(pack);
+  pack._player_pos = player_pos;
+
+  send_to_server((char*)&pack, sizeof(pack));
+}
 
 void
 set_world_state(world_state_packet *packet)
@@ -98,7 +109,7 @@ int main(int argc, char **argv)
   HANDLE poll_thread = (HANDLE)_beginthread(poll_server, 0, NULL);
   for (;;)
   {
-    //update();
+    update();
     win32_update();
 
     dt_start();
@@ -106,7 +117,7 @@ int main(int argc, char **argv)
     f32 cap_delta = WORLD_UPDATE_FREQ / 1000.0f;
     if (dt < cap_delta)
     {
-      Sleep(cap_delta * 1000);
+      Sleep((cap_delta-dt) * 1000);
     }
   }
   timeEndPeriod(1);

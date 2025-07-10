@@ -8,7 +8,8 @@ typedef enum PACKET_TYPE : u8
   ACK,
   LOGIN,
   HEARTBEAT,
-  WORLD_STATE
+  WORLD_STATE,
+  CLIENT_STATE,
 } PACKET_TYPE;
 
 typedef struct net_header net_header;
@@ -41,6 +42,14 @@ struct world_state_packet
   u8 _food_count;
   v2i _food_pos[FOOD_MAX];
 };
+
+typedef struct client_state_packet client_state_packet;
+struct client_state_packet
+{
+  net_header _header;
+  v2i _player_pos;
+};
+
 
 /*
  * TODO (23:09PM 250709):

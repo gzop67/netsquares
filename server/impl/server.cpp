@@ -193,7 +193,8 @@ server_maintain_connections(void*)
               sz);
         if (r == SOCKET_ERROR)
         {
-          winsock_err("udp sendto()");
+          //winsock_err("udp sendto()"); //FIX dunno why this is failing, on
+          //multiple client connects?
         }
         else
         {
@@ -395,7 +396,7 @@ main (int argc, char **argv)
     f32 cap_delta = WORLD_UPDATE_FREQ / 1000.0f;
     if (dt < cap_delta)
     {
-      Sleep(cap_delta * 1000);
+      Sleep((cap_delta-dt) * 1000);
     }
     fprintf(stdout, "dt: %f\n", dt + cap_delta);
   }
