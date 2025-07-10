@@ -478,6 +478,11 @@ main (int argc, char **argv)
     {
       Sleep((cap_delta-dt) * 1000);
     }
+    else
+    {
+      cap_delta *= 0; //so it doesn't get added to _uptime if Sleep() wasn't
+                      //called.
+    }
     f32 add = ((cap_delta + dt) * 1000.0f);
     f64 ut = (f64)uptime + add;
     f64 days = (f64)(ut / 1000.0f / 60.0f / 60.0f / 24.0f);
