@@ -9,9 +9,6 @@
 #include <cstdlib>
 #include <timeapi.h>
 
-#define MAX_LOGIN_CONNECTIONS 16
-#define MAX_CLIENTS 32
-
 typedef struct login_connection login_connection;
 struct login_connection
 {
@@ -95,7 +92,7 @@ connect_client(u32 login_connections_index, const char *username)
 {
   login_connection *lc = &login_connections[login_connections_index];
   client_connection cc;
-  cc._client_id = dumb_hash(username);
+  cc._client_id = random_u32();//dumb_hash(username);
   cc._session_id = random_u32();
 
   for (u32 i = 0; i < MAX_CLIENTS; i++)
@@ -109,6 +106,7 @@ connect_client(u32 login_connections_index, const char *username)
       ecp._header._type = ESTABLISH_COMMS;
       ecp._header._size = sizeof(ecp);
       ecp._uid = rand();
+      ecp._client_id = cc._client_id;
       connected_clients[i]._temp_establish_uid = ecp._uid;
       send(lc->_socket, (char*)&ecp, ecp._header._size, 0);
       connected_clients[i]._client_connection = cc;
@@ -252,7 +250,10 @@ server_listen_to_clients(void*)
         case CLIENT_STATE:
           {
             client_state_packet *p = (client_state_packet*)&buf;
-            fprintf(stdout, "client packet recv\n");
+            player pl;
+            pl._client_id = p->_client_id;
+            pl._pos = p->_player_pos;
+            player_update(pl);
           } break;
         case ESTABLISH_COMMS:
           {
@@ -262,6 +263,8 @@ server_listen_to_clients(void*)
               if (connected_clients[i]._temp_establish_uid == ecp->_uid)
               {
                 fprintf(stdout, "Established:: %s\n", buf);
+                player_join({connected_clients[i]._client_connection._client_id,
+                    {0, 0}});
                 connected_clients[i]._client_connection._address_info =
                   *(sockaddr_storage*)&their_addr;
                 break;

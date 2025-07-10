@@ -8,11 +8,16 @@
 #define LOGIN_PORT "6665"
 #define GAME_PORT "6666"
 
+#define MAX_LOGIN_CONNECTIONS 16
+#define MAX_CLIENTS 32
+
 #define TRUE 1
 #define FALSE 0
 
 #define WINDOW_WIDTH 256
 #define WINDOW_HEIGHT 256
+
+#define MOVE_SPEED 10.5f
 
 #define SQUARE_SIZE 32
 #define FOOD_MAX 64

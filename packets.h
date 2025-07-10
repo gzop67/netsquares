@@ -32,6 +32,7 @@ struct establish_comms_packet
 {
   net_header _header;
   u32 _uid;
+  u32 _client_id;
 };
 
 typedef struct login_packet login_packet;
@@ -48,6 +49,8 @@ struct world_state_packet
   net_header _header;
   u8 _food_count;
   v2i _food_pos[FOOD_MAX];
+  u32 _player_ids[MAX_CLIENTS];
+  v2i _player_pos[MAX_CLIENTS];
 };
 
 typedef struct client_state_packet client_state_packet;
@@ -55,6 +58,7 @@ struct client_state_packet
 {
   net_header _header;
   v2i _player_pos;
+  u32 _client_id;
 };
 
 

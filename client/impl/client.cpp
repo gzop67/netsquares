@@ -10,6 +10,13 @@
 internal SOCKET udp_socket;
 internal struct addrinfo *server_addr_info;
 internal bool8 has_connection;
+internal u32 client_id;
+
+u32
+get_client_id()
+{
+  return (client_id);
+}
 
 internal void
 bind_for_udp()
@@ -99,6 +106,7 @@ client_connect()
             establish_comms_packet *ecp = (establish_comms_packet*)buf;
             if (ecp->_header._type == ESTABLISH_COMMS)
             {
+              client_id = ecp->_client_id;
               fprintf(stdout, "Login accepted.\n");
               if (closesocket(s) == SOCKET_ERROR)
               {

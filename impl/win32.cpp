@@ -4,7 +4,6 @@
 #include <windows.h>
 
 internal bool8 keys[4]; //up, down, left, right
-#define MOVE_SPEED 0.01
 internal HWND hwnd;
 internal HBRUSH fill, world_col, player_col;
 
@@ -23,15 +22,19 @@ window_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         FillRect(hdc, &ps.rcPaint, fill);
 
-        RECT world_rects[64], player_rect;
+        RECT world_rects[64];
+        RECT players[MAX_CLIENTS];
         u32 count = get_world_rects(world_rects);
-        get_player_rect(&player_rect);
+        u32 player_count = get_players(players);
         for (u32 i = 0; i < count; i++)
         {
           FillRect(hdc, &world_rects[i], world_col);
         }
+        for (u32 i = 0; i < player_count; i++)
+        {
+          FillRect(hdc, &players[i], player_col);
+        }
 
-        FillRect(hdc, &player_rect, player_col);
 
         EndPaint(hwnd, &ps);
       } break;
