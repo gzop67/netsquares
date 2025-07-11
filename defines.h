@@ -11,13 +11,15 @@
 #define MAX_LOGIN_CONNECTIONS 16
 #define MAX_CLIENTS 32
 
+#define CLIENT_ID u32
+
 #define TRUE 1
 #define FALSE 0
 
 #define WINDOW_WIDTH 256
 #define WINDOW_HEIGHT 256
 
-#define MOVE_SPEED 10.5f
+#define MOVE_SPEED 5
 
 #define SQUARE_SIZE 32
 #define FOOD_MAX 64
@@ -27,7 +29,6 @@
 #define WORLD_UPDATE_FREQ 30
 
 #define internal static
-#define global static
 #define local_persist static
 
 typedef uint32_t bool32;
@@ -54,7 +55,7 @@ struct v2f
 typedef struct v2i v2i;
 struct v2i
 {
-  u32 _x, _y;
+  s32 _x, _y;
 };
 
 

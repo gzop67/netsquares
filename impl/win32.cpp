@@ -2,6 +2,7 @@
 #include "../win32.h"
 #include "../netsquares.h"
 #include <windows.h>
+#include <stdio.h>
 
 internal bool8 keys[4]; //up, down, left, right
 internal HWND hwnd;
@@ -24,17 +25,32 @@ window_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         RECT world_rects[64];
         RECT players[MAX_CLIENTS];
+        u32 scores[MAX_CLIENTS];
+        u32 cids[MAX_CLIENTS];
         u32 count = get_world_rects(world_rects);
+        get_client_ids(cids);
+        get_scores(scores);
         u32 player_count = get_players(players);
         for (u32 i = 0; i < count; i++)
         {
           FillRect(hdc, &world_rects[i], world_col);
         }
+        LOGBRUSH lb;
+        GetObject(player_col, sizeof(lb), &lb);
+        SetBkColor(hdc, RGB(0, 0, 0));
+        SetTextColor(hdc, lb.lbColor);
         for (u32 i = 0; i < player_count; i++)
         {
           FillRect(hdc, &players[i], player_col);
+          char buf[16];
+          RECT r = players[i];
+          r.left -= 32;
+          r.right += 32;
+          r.top -= 32;
+          r.bottom += 32;
+          sprintf(buf, "p_%d : %d", cids[i], scores[i]);
+          DrawText(hdc, buf, -1, &r, DT_CENTER);
         }
-
 
         EndPaint(hwnd, &ps);
       } break;
@@ -143,8 +159,8 @@ win32_initialise()
   ShowWindow(hwnd, SW_SHOW);
   UpdateWindow(hwnd);
 
-  world_col = CreateSolidBrush(RGB(96,0,64));
-  player_col = CreateSolidBrush(RGB(255,0,0));
+  world_col = CreateSolidBrush(RGB(106,190,48));
+  player_col = CreateSolidBrush(RGB(215,123,186));
   fill = CreateSolidBrush(RGB(0,0,0));
 }
 

@@ -155,10 +155,10 @@ poll_server(void *)
 {
   for (;;)
   {
-    char buf[1024];
+    char buf[2048];
     struct sockaddr_storage their_addr;
     socklen_t sz = sizeof(sockaddr_storage);
-    s32 r = recvfrom(udp_socket, buf, 1024-1, 0, (sockaddr*)&their_addr,
+    s32 r = recvfrom(udp_socket, buf, 2048-1, 0, (sockaddr*)&their_addr,
         &sz);
     if (r > 0 && r != SOCKET_ERROR)
     {

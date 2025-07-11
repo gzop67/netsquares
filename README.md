@@ -10,4 +10,5 @@ Initial idea as of 20250705 is:
   -Server will handle world state, players can be authoritative over their
   position and attempts to eat food.
   
-
+  
+![alt text](https://github.com/gzop67/netsquares/img.jpg?raw=true)

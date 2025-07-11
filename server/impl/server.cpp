@@ -226,6 +226,7 @@ server_handle_logins(void *)
 {
   for (;;)
   {
+    Sleep(1000);
     for (u32 i = 0; i < MAX_LOGIN_CONNECTIONS; i++)
     {
       if (login_connections[i]._socket != INVALID_SOCKET)
@@ -271,10 +272,7 @@ server_listen_to_clients(void*)
         case CLIENT_STATE:
           {
             client_state_packet *p = (client_state_packet*)buf;
-            player pl;
-            pl._client_id = p->_client_id;
-            pl._pos = p->_player_pos;
-            player_update(pl);
+            player_update(p->_client_id, p->_player_pos);
           } break;
         case ESTABLISH_COMMS:
           {
@@ -284,8 +282,7 @@ server_listen_to_clients(void*)
               if (connected_clients[i]._temp_establish_uid == ecp->_uid)
               {
                 fprintf(stdout, "Established:: %s\n", buf);
-                player_join({connected_clients[i]._client_connection._client_id,
-                    {0, 0}});
+                player_join(connected_clients[i]._client_connection._client_id);
                 connected_clients[i]._client_connection._address_info =
                   *(sockaddr_storage*)&their_addr;
                 break;
@@ -467,6 +464,11 @@ main (int argc, char **argv)
   {
     assert(FALSE && "Failed to create server_listen_to_clients thread.");
   }
+
+
+  spawn_food({100, 100});
+  spawn_food({190, 190});
+  spawn_food({150, 100});
 
   for (;;)
   {

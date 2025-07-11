@@ -49,7 +49,8 @@ struct world_state_packet
   net_header _header;
   u8 _food_count;
   v2i _food_pos[FOOD_MAX];
-  u32 _player_ids[MAX_CLIENTS];
+  CLIENT_ID _client_ids[MAX_CLIENTS];
+  u32 _scores[MAX_CLIENTS];
   v2i _player_pos[MAX_CLIENTS];
 };
 

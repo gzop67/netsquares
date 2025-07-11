@@ -12,6 +12,7 @@ typedef struct player player;
 struct player
 {
   u32 _client_id;
+  u32 _score;
   v2i _pos;
 };
 
@@ -44,11 +45,14 @@ set_world_state(world_state_packet *packet)
   u32 pid = 1;
   for (u32 i = 0; i < MAX_CLIENTS; i++)
   {
-    if (packet->_player_ids[i] == cid)
-      continue;
+    if (packet->_client_ids[i] == cid)
+    {
+      players[0]._score = packet->_scores[i];
+    }
     else
     {
-      players[pid]._client_id = packet->_player_ids[i];
+      players[pid]._client_id = packet->_client_ids[i];
+      players[pid]._score = packet->_scores[i];
       players[pid]._pos = packet->_player_pos[i];
       pid++;
     }
@@ -62,6 +66,36 @@ set_world_state(world_state_packet *packet)
       (s64)(p._x + FOOD_SIZE*0.5f),
       (s64)(p._y - FOOD_SIZE*0.5f)};
   }
+}
+u32
+get_scores(u32 *scores)
+{
+  u32 count = 0;
+  u32 j = 0;
+  for (u32 i = 0; i < MAX_CLIENTS; i++)
+  {
+    if (players[i]._client_id != 0)
+    {
+      scores[i] = players[i]._score;
+      count++;
+    }
+  }
+  return (count);
+}
+u32
+get_client_ids(u32 *cids)
+{
+  u32 count = 0;
+  u32 j = 0;
+  for (u32 i = 0; i < MAX_CLIENTS; i++)
+  {
+    if (players[i]._client_id != 0)
+    {
+      cids[i] = players[i]._client_id;
+      count++;
+    }
+  }
+  return (count);
 }
 
 u32

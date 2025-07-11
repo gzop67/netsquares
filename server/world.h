@@ -5,15 +5,8 @@
 bool8 spawn_food(v2i pos);
 void world_update();
 
-typedef struct player player;
-struct player
-{
-  u32 _client_id;
-  v2i _pos;
-};
-
-void player_update(player p);
-void player_join(player p);
-void player_leave(u32 client_id);
+void player_update(CLIENT_ID client_id, v2i pos);
+void player_join(CLIENT_ID client_id);
+void player_leave(CLIENT_ID client_id);
 
 #endif// SERVER_WORLD_H
