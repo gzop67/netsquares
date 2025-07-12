@@ -27,6 +27,7 @@ Initial idea as of 20250705 is:
 License
 ======
 Licensed under GPL3.0, see [LICENSE.txt](LICENSE.txt)
+
 While the license permits broad use, redistribution, and modification, the
 author requests that this software is NOT used, in whole or in part, for
 training, tuning, evaluating, or developing any machine learning, artificial
