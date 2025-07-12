@@ -1,3 +1,8 @@
+/* ----------------------------------------------------------------------------
+ * Copyright (c) 2025 gzop67
+ * See LICENSE.txt for copyright and licensing details. (GPL3.0)
+ * ----------------------------------------------------------------------------
+ * */
 #ifndef NETSQUARES_H
 #define NETSQUARES_H
 #include <windows.h>
